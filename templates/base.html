@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf" content="{{ csrf }}"><title>{% block title %}Secure Submission Portal{% endblock %}</title>
+<style>
+:root{--bg:#0f1420;--card:#171e2e;--card2:#1d2639;--line:#2a3550;--tx:#e6ebf5;--mut:#8b97b3;--acc:#5b8cff;--ok:#2fd18b;--bad:#ff5d6c;--warn:#ffb648}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+nav{display:flex;align-items:center;gap:18px;padding:14px 28px;background:var(--card);border-bottom:1px solid var(--line)}
+nav .brand{font-weight:700;font-size:16px}nav .brand span{color:var(--acc)}nav .sp{flex:1}
+.wrap{max-width:1200px;margin:0 auto;padding:24px 28px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:0 0 12px}.mut{color:var(--mut)}
+.grid{display:grid;gap:16px;margin-bottom:16px}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:2fr 1fr}
+@media(max-width:900px){.g4,.g2,.g3{grid-template-columns:1fr 1fr}}@media(max-width:600px){.g4,.g2,.g3{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.stat b{display:block;font-size:26px}.stat span{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.tbl{overflow-x:auto}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600}
+.b-ok{background:#12352b;color:var(--ok)}.b-bad{background:#3d1a20;color:var(--bad)}.b-warn{background:#3d2e12;color:var(--warn)}.b-mut{background:#222c43;color:var(--mut)}
+button,.btn{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer;display:inline-block}
+button.sec,.btn.sec{background:var(--card2);border:1px solid var(--line);color:var(--tx)}button.dan{background:#7a2530}button.sm{padding:4px 10px;font-size:12px}
+button:hover,.btn:hover{filter:brightness(1.1);text-decoration:none}
+input,select,textarea{width:100%;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;min-height:140px}label{display:block;margin:10px 0 4px;color:var(--mut);font-size:12px}
+.flash{padding:10px 14px;border-radius:8px;margin-bottom:14px}.flash.ok{background:#12352b;color:var(--ok)}.flash.err{background:#3d1a20;color:var(--bad)}
+code,.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}.hash{word-break:break-all;color:var(--mut)}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;max-height:340px;font-size:12px;margin:0}
+.step{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.step:last-child{border:0}
+.step i{flex:none;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#fff;font-style:normal;font-weight:700;display:grid;place-items:center;font-size:12px}
+.chk{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.chk:last-child{border:0}.chk .ic{font-size:18px}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--card2)}.bar div{height:100%}
+.pill{background:var(--card2);border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:12px;margin:2px 4px 2px 0;display:inline-block}
+nav a.on{color:var(--tx)}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}.tabs a{background:var(--card2);border:1px solid var(--line);border-radius:99px;padding:4px 12px;color:var(--tx)}
+select.inl{width:auto;padding:4px 6px}.ck{width:18px;height:18px;accent-color:var(--acc);cursor:pointer}.ck:disabled{cursor:not-allowed;opacity:.5}
+</style></head><body>
+<nav><div class="brand">🔐 Secure<span>Submit</span> <span class="mut" style="font-weight:400">· post-quantum</span></div>
+{% if me %}<a href="{{ url_for('dashboard') }}">Dashboard</a>{% endif %}<a href="{{ url_for('verify_page') }}">Verify receipt</a><div class="sp"></div>
+{% if me %}<span class="mut">{{ me.name }} · <span class="badge b-mut">{{ me.role }}</span></span><form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sec sm">Log out</button></form>{% endif %}</nav>
+<div class="wrap">{% with m=get_flashed_messages(with_categories=true) %}{% for c,t in m %}<div class="flash {{c}}">{{ t }}</div>{% endfor %}{% endwith %}
+{% block body %}{% endblock %}</div><script>document.querySelectorAll('.ts').forEach(e=>{const d=new Date(e.dataset.utc);if(!isNaN(d)){e.title=e.dataset.utc+' (UTC)';e.textContent=d.toLocaleString([], {dateStyle:'medium',timeStyle:'short'});}});
+document.querySelectorAll('input[name=tz]').forEach(i=>i.value=new Date().getTimezoneOffset());</script></body></html>

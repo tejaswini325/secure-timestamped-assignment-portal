@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% block body %}
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px"><div style="flex:1"><h1>Admin dashboard</h1><p class="mut" style="margin:0">Users, courses, access permissions, keys and system-wide monitoring.</p></div>
+{% if can('audit.view') %}<button id="auditBtn">🔍 Run full integrity audit</button><span id="auditRes"></span>{% endif %}</div>
+<div class="tabs"><a href="#overview">Overview</a><a href="#users">Users &amp; roles</a><a href="#courses">Courses</a><a href="#acl">Access Control Matrix</a><a href="#keys">Key management</a><a href="#records">Submission records</a><a href="#audit">Audit log</a></div>
+<div id="overview"><div class="grid g4"><div class="card stat"><b>{{ stats.total }}</b><span>Submissions</span></div><div class="card stat"><b>{{ stats.users }}</b><span>Users</span></div>
+<div class="card stat"><b>{{ stats.late }}</b><span>Late submissions</span></div><div class="card stat"><b style="color:{{ 'var(--bad)' if stats.events else 'var(--ok)' }}">{{ stats.events }}</b><span>Security events (failed login / denied / tamper)</span></div></div>
+<div class="grid g2"><div class="card"><h2>Submissions per course</h2>{% set mx = (by_course|map(attribute='n')|max) or 1 %}
+{% for p in by_course %}<div style="margin:10px 0"><div style="display:flex;justify-content:space-between"><span>{{ p.code }}</span><span class="mut">{{ p.n }} ({{ p.late }} late)</span></div>
+<div class="bar"><div style="width:{{ ((p.n-p.late)/mx*100)|round }}%;background:var(--ok)"></div><div style="width:{{ (p.late/mx*100)|round }}%;background:var(--warn)"></div></div></div>{% endfor %}
+<p class="mut" style="font-size:12px"><span style="color:var(--ok)">■</span> on time &nbsp; <span style="color:var(--warn)">■</span> late</p></div>
+<div class="card"><h2>Average cost of each crypto step ({{ stats.tot }} ms total)</h2>{% set a = stats.avg %}{% set tt = (a.hash + a.kem + a.aes + a.sign) or 1 %}
+<div class="bar" style="height:22px"><div style="width:{{ a.hash/tt*100 }}%;background:#5b8cff"></div><div style="width:{{ a.kem/tt*100 }}%;background:#a26bff"></div><div style="width:{{ a.aes/tt*100 }}%;background:#2fd18b"></div><div style="width:{{ a.sign/tt*100 }}%;background:#ffb648"></div></div>
+<table style="margin-top:8px"><tr><td><span style="color:#5b8cff">■</span> SHA-256</td><td>{{ a.hash }} ms</td><td><span style="color:#a26bff">■</span> ML-KEM-768</td><td>{{ a.kem }} ms</td></tr><tr><td><span style="color:#2fd18b">■</span> AES-256-GCM</td><td>{{ a.aes }} ms</td><td><span style="color:#ffb648">■</span> ML-DSA-65</td><td>{{ a.sign }} ms</td></tr></table></div></div></div>
+
+<div class="card" id="users" style="margin-bottom:16px"><h2>Manage users &amp; assign roles</h2><div class="tbl"><table><tr><th>Username</th><th>Name</th><th>Role</th><th>Status</th><th>Submissions</th><th></th></tr>
+{% for u in users %}<tr><form method="post" action="{{ url_for('admin_user_update', uid=u.id) }}"><input type="hidden" name="csrf" value="{{ csrf }}"><td>{{ u.username }}</td><td>{{ u.name }}</td>
+<td><select class="inl" name="role" {{ 'disabled' if u.id==me.id }}>{% for r in roles %}<option {{ 'selected' if r==u.role }}>{{ r }}</option>{% endfor %}</select></td>
+<td><select class="inl" name="active" {{ 'disabled' if u.id==me.id }}><option value="1" {{ 'selected' if u.active }}>active</option><option value="0" {{ 'selected' if not u.active }}>disabled</option></select></td><td>{{ u.subs }}</td>
+<td>{% if u.id!=me.id %}<button class="sec sm">Save</button>{% else %}<span class="mut">you</span>{% endif %}</td></form></tr>{% endfor %}</table></div>
+<form method="post" action="{{ url_for('admin_user_create') }}" style="display:grid;grid-template-columns:repeat(5,1fr) auto;gap:8px;margin-top:12px;align-items:end"><input type="hidden" name="csrf" value="{{ csrf }}">
+<div><label>Username</label><input name="username" required></div><div><label>Name</label><input name="name" required></div><div><label>Password</label><input name="password" type="password" required></div>
+<div><label>Role</label><select name="role">{% for r in roles %}<option>{{ r }}</option>{% endfor %}</select></div><div></div><button>Add user</button></form></div>
+
+<div class="card" id="courses" style="margin-bottom:16px"><h2>Manage courses</h2><div class="tbl"><table><tr><th>Code</th><th>Course</th><th>Faculty</th><th>Enrolled</th><th>Assignments</th></tr>
+{% for c in courses %}<tr><td>{{ c.code }}</td><td>{{ c.name }}</td><td>{{ c.faculty }}</td><td>{{ c.enrolled }}</td><td>{{ c.n_asg }}</td></tr>{% endfor %}</table></div>
+<form method="post" action="{{ url_for('admin_course_create') }}" style="display:grid;grid-template-columns:1fr 2fr 2fr auto;gap:8px;margin-top:12px;align-items:end"><input type="hidden" name="csrf" value="{{ csrf }}">
+<div><label>Code</label><input name="code" required></div><div><label>Course name</label><input name="name" required></div>
+<div><label>Faculty</label><select name="faculty_id">{% for f in faculty %}<option value="{{ f.id }}">{{ f.name }}</option>{% endfor %}</select></div><button>Add course</button></form></div>
+
+<div class="card" id="acl" style="margin-bottom:16px"><h2>Access Control Matrix <span class="mut" style="font-weight:400">- click to grant / revoke; enforced on every request</span></h2><div class="tbl"><table>
+<tr><th>Permission</th>{% for r in roles %}<th style="text-align:center">{{ r }}</th>{% endfor %}</tr>
+{% for p, desc in perms.items() %}<tr><td>{{ desc }} <span class="mut mono">{{ p }}</span></td>
+{% for r in roles %}<td style="text-align:center"><input type="checkbox" class="ck" {{ 'checked' if matrix[r][p] }} {{ 'disabled' if (r,p) in locked }} onchange="acl('{{ r }}','{{ p }}',this)"></td>{% endfor %}</tr>{% endfor %}</table></div>
+<p class="mut" style="font-size:12px">Separation of duties: admins manage the system but cannot decrypt or download student files; faculty only reach their own courses. Admin's own management rights are locked to prevent lock-out.</p></div>
+
+<div class="card" id="keys" style="margin-bottom:16px"><div style="display:flex;align-items:center"><h2 style="flex:1">Key management - post-quantum keyring</h2>{% if can('keys.manage') %}<form method="post" action="{{ url_for('admin_rotate') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sec">↻ Rotate keys</button></form>{% endif %}</div>
+<div class="tbl"><table><tr><th>Purpose</th><th>Algorithm</th><th>Key #</th><th>Public key</th><th>Fingerprint (SHA-256)</th><th>Status</th></tr>
+{% for k in keyring %}<tr><td>{{ 'Receipt signing' if k.kind=='dsa' else 'File key encapsulation' }}</td><td>{{ k.alg }}</td><td>{{ k.kid }}</td><td>{{ k.size }} B</td><td class="mono">{{ k.fp }}</td>
+<td>{% if k.active %}<span class="badge b-ok">active</span>{% else %}<span class="badge b-mut">retired (kept for old data)</span>{% endif %}</td></tr>{% endfor %}</table></div>
+<p class="mut" style="font-size:12px">Secret keys are AES-256-GCM sealed at rest under a master key (env <code>MASTER_KEY_HEX</code> or <code>keys/master.key</code>, mode 600). Public keys: <a href="{{ url_for('api_pubkey') }}">/api/pubkey</a>.</p></div>
+
+<div class="card" id="records" style="margin-bottom:16px"><h2>Monitor submission records <span class="mut" style="font-weight:400">(metadata only)</span></h2><div class="tbl"><table id="subs"><tr><th>#</th><th>Student</th><th>Course</th><th>Assignment</th><th>Timestamp</th><th>Status</th><th>SHA-256</th><th>Integrity</th><th></th></tr>
+{% for r in rows %}<tr data-id="{{ r.id }}"><td>{{ r.seq }}</td><td>{{ r.student }}</td><td>{{ r.code }}</td><td>{{ r.title }}</td><td><span class="ts" data-utc="{{ r.submitted_at }}">{{ r.submitted_at }}</span></td>
+<td>{% if r.late %}<span class="badge b-warn">LATE</span>{% else %}<span class="badge b-ok">ON TIME</span>{% endif %}</td><td class="mono hash">{{ r.sha256[:16] }}…</td><td class="int"><span class="badge b-mut">not checked</span></td><td><a href="{{ url_for('receipt_page', sid=r.id) }}">Receipt</a></td></tr>
+{% else %}<tr><td colspan="9" class="mut">No submissions yet.</td></tr>{% endfor %}</table></div></div>
+
+<div class="card" id="audit"><h2>Security &amp; access audit log</h2><div class="tbl"><table><tr><th>Time</th><th>Actor</th><th>Event</th><th>Detail</th><th>ms</th></tr>
+{% for l in logs %}<tr><td><span class="ts mono" data-utc="{{ l.ts }}">{{ l.ts }}</span></td><td>{{ l.actor }}</td><td><span class="badge {{ 'b-bad' if l.event in ('login_fail','tamper_demo','access_denied') else 'b-mut' }}">{{ l.event }}</span></td><td>{{ l.detail }}</td><td>{{ '%.1f'|format(l.ms) if l.ms else '' }}</td></tr>{% endfor %}</table></div></div>
+<script>
+const H={'X-CSRF-Token':document.querySelector('meta[name=csrf]').content};
+async function acl(role,perm,el){const b=new URLSearchParams({role,perm,allowed:el.checked?1:0});const r=await fetch('/admin/acl',{method:'POST',headers:H,body:b});if(!r.ok){el.checked=!el.checked;}}
+const ab=document.getElementById('auditBtn');if(ab)ab.onclick=async()=>{const r=await(await fetch('/audit',{method:'POST',headers:H})).json();
+ document.querySelectorAll('#records tr[data-id]').forEach(tr=>{const x=r.results[tr.dataset.id];if(!x)return;tr.querySelector('.int').innerHTML=x.ok?'<span class="badge b-ok">✔ verified</span>':'<span class="badge b-bad">✘ '+[!x.sig&&'signature',!x.chain&&'chain',!x.file&&'file tampered'].filter(Boolean).join(', ')+'</span>';});
+ document.getElementById('auditRes').innerHTML=r.ok?'<span class="badge b-ok">All '+Object.keys(r.results).length+' receipts verified in '+r.ms+' ms</span>':'<span class="badge b-bad">TAMPERING DETECTED</span>';};
+</script>
+{% endblock %}

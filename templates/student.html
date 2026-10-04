@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block body %}
+<h1>Student dashboard</h1><p class="mut">Every upload is hashed, encrypted (ML-KEM-768 + AES-256-GCM) and receipted with an ML-DSA-65 signature.</p>
+{% set pend = asg|selectattr('done','equalto',0)|list %}
+<div class="grid g4"><div class="card stat"><b>{{ courses|length }}</b><span>Courses</span></div><div class="card stat"><b>{{ pend|length }}</b><span>Pending assignments</span></div>
+<div class="card stat"><b>{{ subs|length }}</b><span>Submissions</span></div><div class="card stat"><b>{{ subs|selectattr('late')|list|length }}</b><span>Late</span></div></div>
+<div class="grid g3"><div class="card"><h2>Available assignments</h2><div class="tbl"><table><tr><th>Course</th><th>Assignment</th><th>Deadline</th><th>Status</th></tr>
+{% for a in asg %}<tr><td>{{ a.code }}</td><td>{{ a.title }}</td><td><span class="ts" data-utc="{{ a.deadline }}">{{ a.deadline }}</span></td>
+<td>{% if a.done %}<span class="badge b-ok">Submitted</span>{% elif a.deadline < now %}<span class="badge b-warn">Overdue</span>{% else %}<span class="badge b-mut">Open</span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="4" class="mut">No assignments yet - join a course.</td></tr>{% endfor %}</table></div></div>
+<div><div class="card" style="margin-bottom:16px"><h2>Submit assignment</h2><form method="post" action="{{ url_for('submit') }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf" value="{{ csrf }}"><label>Assignment</label><select name="assignment_id" required>{% for a in asg %}<option value="{{ a.id }}">{{ a.code }} - {{ a.title }}</option>{% endfor %}</select>
+<label>File (max 16 MB)</label><input type="file" name="file" required><p><button style="width:100%">Encrypt &amp; submit</button></p></form></div>
+<div class="card"><h2>My courses</h2>{% for c in courses %}<span class="pill">{{ c.code }} · {{ c.name }}</span>{% endfor %}
+<form method="post" action="{{ url_for('join_course') }}" style="display:flex;gap:8px;margin-top:10px"><input type="hidden" name="csrf" value="{{ csrf }}"><input name="code" placeholder="Course code e.g. 22CSC301" required><button class="sec">Join</button></form></div></div></div>
+<div class="card"><h2>Submission history &amp; confirmations</h2><div class="tbl"><table><tr><th>Course</th><th>Assignment</th><th>File</th><th>Server timestamp</th><th>Status</th><th></th></tr>
+{% for s in subs %}<tr><td>{{ s.code }}</td><td>{{ s.title }}</td><td>{{ s.filename }}</td><td><span class="ts" data-utc="{{ s.submitted_at }}">{{ s.submitted_at }}</span></td>
+<td>{% if s.late %}<span class="badge b-warn">LATE</span>{% else %}<span class="badge b-ok">ON TIME</span>{% endif %}</td>
+<td><a href="{{ url_for('receipt_page', sid=s.id) }}">Receipt</a> · <a href="{{ url_for('receipt_download', sid=s.id) }}">JSON</a></td></tr>
+{% else %}<tr><td colspan="6" class="mut">Nothing submitted yet.</td></tr>{% endfor %}</table></div></div>
+{% endblock %}

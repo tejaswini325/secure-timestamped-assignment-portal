@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block body %}
+<h1>Signed receipt</h1><p class="mut">Submission <code>{{ s.id }}</code> &nbsp; <span class="badge {{ 'b-warn' if s.late else 'b-ok' }}">{{ 'LATE' if s.late else 'ON TIME' }}</span></p>
+<div class="grid g2">
+<div class="card"><h2>What was recorded</h2><table>
+<tr><th>Student</th><td>{{ payload.student }} ({{ payload.username }})</td></tr><tr><th>Course</th><td>{{ payload.course }}</td></tr><tr><th>Assignment</th><td>{{ s.title }}</td></tr>
+<tr><th>File</th><td>{{ payload.filename }} ({{ payload.size }} B)</td></tr><tr><th>Server timestamp</th><td class="mono">{{ payload.timestamp }}<div class="mut">server-generated (not an external timestamp authority)</div></td></tr>
+<tr><th>Deadline</th><td class="mono">{{ payload.deadline }}</td></tr><tr><th>SHA-256</th><td class="mono hash">{{ payload.sha256 }}</td></tr>
+<tr><th>Signed with</th><td>ML-DSA-65 key #{{ payload.dsa_kid }} · file key ML-KEM-768 #{{ payload.kem_kid }}</td></tr><tr><th>Prev. receipt hash</th><td class="mono hash">{{ payload.prev_receipt_hash }}</td></tr></table>
+<p><a class="btn" href="{{ url_for('receipt_download', sid=s.id) }}">Download receipt (.json)</a> <a class="btn sec" href="{{ url_for('verify_page') }}">Verify it</a></p></div>
+<div class="card"><h2>Crypto pipeline that ran</h2>
+<div class="step"><i>1</i><div><b>SHA-256</b> fingerprint of the file<div class="mut">{{ '%.2f'|format(T.hash_ms) }} ms</div></div></div>
+<div class="step"><i>2</i><div><b>ML-KEM-768 encapsulation</b> → fresh shared secret (ciphertext {{ T.kem_ct_bytes }} B)<div class="mut">{{ '%.2f'|format(T.kem_ms) }} ms · HKDF-SHA256 derives the AES key</div></div></div>
+<div class="step"><i>3</i><div><b>AES-256-GCM</b> encrypts the file ({{ T.enc_bytes }} B stored)<div class="mut">{{ '%.2f'|format(T.aes_ms) }} ms · authenticated, tamper-evident</div></div></div>
+<div class="step"><i>4</i><div><b>ML-DSA-65 signature</b> over hash + timestamp + student id + chain link ({{ T.sig_bytes }} B)<div class="mut">{{ '%.2f'|format(T.sign_ms) }} ms</div></div></div></div></div>
+<div class="card" style="margin-top:16px"><h2>Receipt file</h2><pre>{{ bundle }}</pre></div>
+{% endblock %}

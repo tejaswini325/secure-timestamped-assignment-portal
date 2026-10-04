@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block body %}
+<div style="max-width:440px;margin:40px auto"><div class="card"><h1>Sign in</h1><p class="mut">Encrypted, timestamped, post-quantum-signed assignment submissions.</p>
+<form method="post"><label>Username</label><input name="username" autofocus required><label>Password</label><input name="password" type="password" required>
+<p><button style="width:100%">Sign in</button></p></form><p class="mut">New student? <a href="{{ url_for('register') }}">Create an account</a></p>
+<hr style="border:0;border-top:1px solid var(--line)"><p class="mut" style="font-size:12px;margin-bottom:0">Demo accounts:<br><code>tejaswini</code> / <code>Student@123</code> (student)<br><code>prof1</code> / <code>Faculty@123</code> (faculty)<br><code>admin1</code> / <code>Admin@1234</code> (admin)</p></div></div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% block body %}
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px"><div style="flex:1"><h1>Faculty dashboard</h1>
+<p class="mut" style="margin:0">{% for c in courses %}<span class="pill">{{ c.code }} · {{ c.name }}</span>{% endfor %}</p></div>
+{% if can('submission.verify') %}<button id="auditBtn">🔍 Verify all my submissions</button><span id="auditRes"></span>{% endif %}</div>
+<div class="grid g4"><div class="card stat"><b>{{ asg|length }}</b><span>Assignments</span></div><div class="card stat"><b>{{ rows|length }}</b><span>Submissions</span></div>
+<div class="card stat"><b>{{ rows|selectattr('late')|list|length }}</b><span>Late</span></div><div class="card stat"><b>{{ tot }} ms</b><span>Avg crypto time / submission</span></div></div>
+<div class="grid g2">
+<div class="card"><h2>Create assignment &amp; set deadline</h2>{% if can('assignment.create') %}<form method="post" action="{{ url_for('create_assignment') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tz" value="0">
+<label>Course</label><select name="course_id">{% for c in courses %}<option value="{{ c.id }}">{{ c.code }} - {{ c.name }}</option>{% endfor %}</select>
+<label>Title</label><input name="title" required maxlength="120"><label>Deadline (your local time)</label><input type="datetime-local" name="deadline" required>
+<p><button>Create assignment</button></p></form>{% else %}<p class="mut">Your role is not permitted to create assignments (see Access Control Matrix).</p>{% endif %}</div>
+<div class="card"><h2>Assignments</h2><div class="tbl"><table><tr><th>Course</th><th>Title</th><th>Deadline</th><th>Submitted</th></tr>
+{% for a in asg %}<tr><td>{{ a.code }}</td><td>{{ a.title }}</td><td><span class="ts" data-utc="{{ a.deadline }}">{{ a.deadline }}</span></td><td>{{ a.n }} / {{ a.enrolled }}{% if a.late %} <span class="badge b-warn">{{ a.late }} late</span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="4" class="mut">None yet.</td></tr>{% endfor %}</table></div></div></div>
+<div class="card"><h2>Student submissions (my courses only)</h2><div class="tbl"><table id="subs"><tr><th>#</th><th>Student</th><th>Course</th><th>Assignment</th><th>File</th><th>Server timestamp</th><th>Status</th><th>Integrity</th><th>Actions</th></tr>
+{% for r in rows %}<tr data-id="{{ r.id }}"><td>{{ r.seq }}</td><td>{{ r.student }}</td><td>{{ r.code }}</td><td>{{ r.title }}</td><td>{{ r.filename }}</td><td><span class="ts" data-utc="{{ r.submitted_at }}">{{ r.submitted_at }}</span></td>
+<td>{% if r.late %}<span class="badge b-warn">LATE</span>{% else %}<span class="badge b-ok">ON TIME</span>{% endif %}</td><td class="int"><span class="badge b-mut">not checked</span></td>
+<td style="white-space:nowrap"><a href="{{ url_for('receipt_page', sid=r.id) }}">Receipt</a>{% if can('submission.download') %} · <a href="{{ url_for('download', sid=r.id) }}">Decrypt &amp; download</a>{% endif %}
+{% if demo and can('demo.tamper') %}<br><button class="sm dan" onclick="act('tamper','{{ r.id }}')">Simulate tamper</button> <button class="sec sm" onclick="act('restore','{{ r.id }}')">Restore</button>{% endif %}</td></tr>
+{% else %}<tr><td colspan="9" class="mut">No submissions yet.</td></tr>{% endfor %}</table></div></div>
+<script>
+const H={'X-CSRF-Token':document.querySelector('meta[name=csrf]').content};
+async function act(k,id){await fetch('/'+k+'/'+id,{method:'POST',headers:H});const b=document.getElementById('auditBtn');if(b)b.click();}
+const ab=document.getElementById('auditBtn');if(ab)ab.onclick=async()=>{const r=await(await fetch('/audit',{method:'POST',headers:H})).json();
+ document.querySelectorAll('#subs tr[data-id]').forEach(tr=>{const x=r.results[tr.dataset.id];if(!x)return;tr.querySelector('.int').innerHTML=x.ok?'<span class="badge b-ok">✔ verified</span>':'<span class="badge b-bad">✘ '+[!x.sig&&'signature',!x.chain&&'chain',!x.file&&'file tampered'].filter(Boolean).join(', ')+'</span>';});
+ document.getElementById('auditRes').innerHTML=r.ok?'<span class="badge b-ok">All verified in '+r.ms+' ms</span>':'<span class="badge b-bad">TAMPERING DETECTED</span>';};
+</script>
+{% endblock %}

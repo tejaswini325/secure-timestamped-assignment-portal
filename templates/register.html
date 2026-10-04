@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block body %}
+<div style="max-width:440px;margin:40px auto"><div class="card"><h1>Student registration</h1><p class="mut">Faculty and admin accounts are created by an administrator.</p>
+<form method="post"><label>Full name</label><input name="name" required><label>Username</label><input name="username" required pattern="[A-Za-z0-9._]{3,32}">
+<label>Password (8+ chars, upper, lower, digit)</label><input name="password" type="password" required minlength="8"><p><button style="width:100%">Register</button></p></form>
+<p class="mut"><a href="{{ url_for('login') }}">Back to sign in</a></p></div></div>
+{% endblock %}
